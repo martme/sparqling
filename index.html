@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>
+    <link rel="stylesheet" href="">
+    <style>
+        svg {
+            background-color: black;
+            color: white;
+            border-color: white;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.4.0/d3.min.js"></script>
+    <script>
+
+// var url = "http://dbpedia.org/sparql";
+var query = [
+"PREFIX dbo: <http://dbpedia.org/ontology/>",
+"PREFIX dbr: <http://dbpedia.org/resource/>",
+"PREFIX dbp: <http://dbpedia.org/property/>",
+"PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#>",
+
+"SELECT DISTINCT ?city ?population ?lat ?long",
+"WHERE ",
+"{",
+" ?city rdf:type dbo:Settlement .",
+" ?city geo:lat ?lat .",
+" ?city geo:long ?long .",
+" ?city dbo:country <http://dbpedia.org/resource/Norway> .",
+" ?city dbo:populationTotal ?population .",
+"}",
+"LIMIT 1000"
+].join(" ");
+
+retrieve(query)
+    .then(function (data) {
+        console.info("received data", data);
+        drawMap(data);
+    })
+    .fail(function (error) {
+        console.error("something went wrong", error)
+    });
+
+
+function retrieve(sparqlQuery) {
+    var url = "http://dbpedia.org/sparql";
+    var queryUrl = url + "?query=" + encodeURIComponent(query) + "&format=json";
+    return $.getJSON(queryUrl);
+}
+
+
+
+function drawMap(response) {
+    var config = {
+        outerWidth: 1000,
+        outerHeight: 1000,
+        circleRadius: 1,
+        min_r: 0.008,
+        max_r: 0.02,
+
+        margin: {
+            top: 20,
+            right: 20,
+            bottom: 20,
+            left: 20,
+        },
+        col_x: "longitude",
+        col_y: "latitude",
+        col_r: "population"
+    };
+    var data = response.results.bindings.map(x => {
+        return {
+            latitude: +x.lat.value,
+            longitude: +x.long.value,
+            population: +x.population.value
+        };
+    });
+    var render = rendrer(config, data);
+}
+
+
+function rendrer(config, data) {
+    var svg = d3.select("body").append("svg")
+        .attr("width", config.outerWidth)
+        .attr("height", config.outerHeight);
+
+    var g = svg.append("g")
+        .attr("transform", "translate(" + config.margin.left + "," + config.margin.top + ")");
+
+    var innerHeight = config.outerHeight - config.margin.top - config.margin.bottom;
+    var innerWidth = config.outerWidth - config.margin.right - config.margin.left;
+
+    var scale_x = d3.scaleLinear().range([0, innerWidth]);
+    var scale_y = d3.scaleLinear().range([innerHeight, 0]);
+    var scale_r = d3.scaleSqrt().range([0, config.max_r]);
+
+    var render = function (data) {
+
+        scale_x.domain(d3.extent(data, function (d) { return d[config.col_x]; }));
+        scale_y.domain(d3.extent(data, function (d) { return d[config.col_y]; }));
+
+        var circles = g.selectAll("circle").data(data);
+        // enter
+        circles.enter().append("circle")
+            .attr("class", "d3-circle")
+            .attr("cx",     function (d) { return scale_x(d[config.col_x]); })
+            .attr("cy",     function (d) { return scale_y(d[config.col_y]); })
+            //.attr("r", "2")
+            .attr("r",      function (d) { return scale_r(d[config.col_r]); })
+            .attr("fill", "white");
+        // update
+        //circles
+        // exit
+        circles.exit().remove();
+    }
+
+    render(data);
+}
+    </script>
+</body>
+</html>
