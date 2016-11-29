@@ -1,0 +1,17 @@
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+PREFIX dbp: <http://dbpedia.org/property/>
+
+SELECT DISTINCT ?club ?capacity ?height ?name
+WHERE 
+{
+ ?club rdf:type dbo:Organisation .
+ ?club dbp:ground ?ground .
+ ?club dbp:capacity ?capacity .
+ ?club dbp:league <http://dbpedia.org/resource/Premier_League> .
+ ?club dbp:manager ?manager .
+ ?manager dbo:height ?height .
+ ?manager rdfs:label ?name .
+ filter(langMatches(lang(?name), "EN")) .
+}
+LIMIT 1000

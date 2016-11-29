@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+    <title>Awesome Semantic Web Example</title>
+    <link rel="stylesheet" href="">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+</head>
+<body class="container">
+
+<table class="table table-responsive table-striped">
+    <thead>
+        <tr>
+            <th>Club</th>
+            <th>Capacity</th>
+            <th>Manager's Height</th>
+        </tr>
+    </thead>
+    <tbody data-bind="foreach: rows">
+        <tr>
+            <td><a data-bind="attr: {href: club.value}, text: club.value" target="_blank"></a></td>
+            <td data-bind="text: capacity.value">
+            <td data-bind="text: height.value">
+        </tr>
+    </tbody>
+
+
+    <div id="chart" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.4.0/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.1/knockout-min.js"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script>
+
+// var url = "http://dbpedia.org/sparql";
+var query = [
+"PREFIX dbo: <http://dbpedia.org/ontology/>",
+"PREFIX dbr: <http://dbpedia.org/resource/>",
+"PREFIX dbp: <http://dbpedia.org/property/>",
+
+"SELECT DISTINCT ?club ?capacity ?height",
+"WHERE ",
+"{",
+" ?club rdf:type dbo:Organisation .",
+" ?club dbp:capacity ?capacity .",
+" ?club dbp:league <http://dbpedia.org/resource/Premier_League> .",
+" ?club dbp:manager ?manager .",
+" ?manager dbo:height ?height .",
+"}",
+"LIMIT 1000",
+].join(" ");
+
+retrieve(query)
+    .then(function (data) {
+        console.info("received data", data);
+        drawChart(data);
+        ko.applyBindings({ rows: ko.observableArray(data.results.bindings) });
+    })
+    .fail(function (error) {
+        console.error("something went wrong", error)
+    });
+
+
+function retrieve(sparqlQuery) {
+    var url = "http://dbpedia.org/sparql";
+    var queryUrl = url + "?query=" + encodeURIComponent(query) + "&format=json";
+    return $.getJSON(queryUrl);   
+}
+
+function drawChart(sparqlQueryResults) {
+    var rows = sparqlQueryResults.results.bindings;
+    Highcharts.chart('chart', {
+        chart: {
+            type: 'column'
+        },
+        title: {
+            text: 'Manager Height/Stadium Capacity Correlation'
+        },
+        subtitle: {
+            text: 'Source: dbpedia.org'
+        },
+        xAxis: {
+            categories: rows.map(function (x) { return x.club.value.substring("http://dbpedia.org/resource/".length); }),
+            crosshair: true
+        },
+        yAxis: [
+            {
+                min: 0,
+                title: {
+                    text: "Stadium Capacity"
+                }
+            },
+            {
+                min: 1.60,
+                title: {
+                    text: "Manager's height" 
+                },
+                labels: {
+                    format: '{value}m'
+                },
+                opposite: true
+            }
+        ],
+        plotOptions: {
+            column: {
+                pointPadding: 0.2,
+                borderWidth: 0
+            }
+        },
+        series: [{
+            name: 'Capacity',
+            yAxis: 0,
+            data: rows.map(function (x) { return +x.capacity.value; })
+        }, {
+            name: 'Height',
+            yAxis: 1,
+            data: rows.map(function (x) { return +x.height.value; })
+        }]
+    });
+}
+
+
+
+</script>
+
+</body>
+</html>
